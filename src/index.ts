@@ -1,29 +1,26 @@
 import "./db";
-import { Elysia } from "elysia";
-import { AIRoutes } from "./routes/ai.routes";
+import { Elysia, file } from "elysia";
 import logixlysia from "logixlysia";
-import { PaymentsRoutes } from "./routes/payments.routes";
-import { AuthRoutes } from "./routes/auth.routes";
 import { swagger } from "@elysiajs/swagger";
+import { UserRoutes } from "./routes/user.routes";
+import { PropertyRoutes } from "./routes/property.routes";
+import { AIRoutes } from "./routes/ai.routes";
+import { TransactionRoutes } from "./routes/transaction.routes";
+import { DataRoutes } from "./routes/data.routes";
 
-const app = new Elysia()
+export const app = new Elysia()
 	.use(logixlysia())
-	.use(
-		swagger({
-			documentation: {
-				info: {
-					title: "SayPay API",
-					description: "SayPay API",
-					version: "1.0.0",
-				},
-			},
-		}),
-	)
+	.use(swagger({}))
 	.onError(({ error }) => {
-		console.log(error);
+		throw error;
 	})
+	.use(UserRoutes)
+	.use(PropertyRoutes)
+	.use(TransactionRoutes)
+	.use(DataRoutes)
 	.use(AIRoutes)
-	.use(PaymentsRoutes)
-	.use(AuthRoutes)
 	.get("/", () => "Hello Elysia")
+	.get("/favicon.ico", () => file("public/favicon.png"))
 	.listen(3000);
+
+export type App = typeof app;

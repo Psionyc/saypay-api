@@ -1,31 +1,23 @@
-import { type Static, t } from "elysia";
+import { t, type Static } from "elysia";
 import { MongooseSchema } from "./_helpers";
-import { Schema, model } from "mongoose";
+import mongoose from "mongoose";
 
 export const TUser = MongooseSchema({
-	name: t.String(),
-	email: t.String(),
-	password: t.String(),
-	balance: t.Number(),
-	pitch: t.Number(),
+	username: t.String(),
+	//bs58 public keys associated with this account
+	pubkey: t.String(),
 });
 
 export type IUser = Static<typeof TUser>;
 
-export const UserSchema = new Schema<IUser>(
+export const UserSchema = new mongoose.Schema<IUser>(
 	{
-		name: String,
-		email: String,
-		password: String,
-		balance: Number,
-		pitch: {
-			type: Number,
-			default: 0,
-		},
+		username: String,
+		pubkey: String,
 	},
 	{
 		timestamps: true,
 	},
 );
 
-export const User = model("User", UserSchema);
+export const User = mongoose.model<IUser>("User", UserSchema);

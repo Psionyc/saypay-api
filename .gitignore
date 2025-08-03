@@ -44,3 +44,8 @@ package-lock.json
 
 *.mp3
 *.wav
+
+
+*.env.*
+
+!.env.example

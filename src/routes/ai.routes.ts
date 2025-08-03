@@ -1,67 +1,46 @@
-import { Elysia, t } from "elysia";
-import OpenAI from "openai";
-import fs from "node:fs";
-import { OPENAI_API_KEY } from "../config";
+import Elysia, { t } from "elysia";
+import { Property } from "../models/Property";
+import { CacheProvider } from "../providers/cache.provider";
+import { ErrorResponse, SuccessResponse, TResponse } from "../shcemas/_helpers";
+import { chain } from "../lib/ai";
 
-const openai = new OpenAI({
-	apiKey: OPENAI_API_KEY,
-});
-
-export const AIRoutes = new Elysia({ prefix: "/ai" })
-	.get("/test", async ({ status }) => {
-		const result = await openai.audio.transcriptions.create({
-			model: "gpt-4o-transcribe",
-			file: fs.createReadStream(`${__dirname}/test.mp3`),
-			language: "en",
-			prompt:
-				"The person has a nigerian accent most likely, Use that to transcribe",
-		});
-
-		console.log(result.text);
-	})
+export const AIRoutes = new Elysia({
+	name: "AIRoutes",
+	prefix: "/ai",
+})
+	.use(CacheProvider)
 	.post(
-		"/speech",
-		async ({ body }) => {
-			const result = await openai.audio.transcriptions.create({
-				model: "gpt-4o-transcribe",
-				file: body.audio,
-				language: "en",
-				prompt:
-					"The person has a nigerian accent most likely, Use that to transcribe",
+		"/:propertyId",
+		async ({ body, params: { propertyId }, propertyCache, set }) => {
+			const property =
+				propertyCache.get(propertyId) || (await Property.findById(propertyId));
+
+			if (!property) {
+				set.status = 404;
+				return ErrorResponse({ message: "Property not found" });
+			}
+
+			const { message, previousMessages } = body;
+
+
+			const result = await chain.invoke({
+				propertyData: property,
+				chat_history: previousMessages,
+				question: message,
 			});
 
-			const reply = await openai.audio.speech.create({
-				model: "gpt-4o",
-				voice: "ballad",
-				input: result.text,
-				response_format: "mp3",
-				instructions:
-					"The person has a nigerian accent most likely, Be calm professional and ask to be sure about their intent",
-			});
-
-			return {
-				result: {
-					audio: await reply.arrayBuffer(),
-					text: result.text,
-				},
-			};
+			return SuccessResponse(result);
 		},
 		{
 			body: t.Object({
-				audio: t.File({
-					type: "audio/*",
-				}),
-			}),
-			response: {
-				200: t.Object({
-					result: t.Object({
-						audio: t.Unsafe<ArrayBuffer>(),
-						text: t.String(),
+				message: t.String(),
+				previousMessages: t.Array(
+					t.Object({
+						role: t.String(),
+						content: t.String(),
 					}),
-				}),
-			},
+				),
+			}),
+			response: TResponse(t.String()),
 		},
-	)
-	.post("/", ({ status }) => {
-		return status("OK");
-	});
+	);
